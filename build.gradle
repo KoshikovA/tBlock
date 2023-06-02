@@ -1,5 +1,7 @@
 project.ext.lwjglVersion = "3.3.2"
+project.ext.lwjgl3-awtVersion = "0.1.8"
 project.ext.steamworks4jVersion = "1.9.0"
+project.ext.steamworks4j-serverVersion = "1.9.0"
 project.ext.lwjglNatives = "natives-windows"
 
 repositories {
@@ -13,7 +15,6 @@ dependencies {
 	implementation "org.lwjgl:lwjgl-assimp"
 	implementation "org.lwjgl:lwjgl-bgfx"
 	implementation "org.lwjgl:lwjgl-cuda"
-	implementation "org.lwjgl:lwjgl-egl"
 	implementation "org.lwjgl:lwjgl-fmod"
 	implementation "org.lwjgl:lwjgl-freetype"
 	implementation "org.lwjgl:lwjgl-glfw"

@@ -6,6 +6,12 @@ import org.lwjgl.opengl.GL;
 import org.lwjgl.system.MemoryStack;
 import org.apache.commons.lang3.ArrayUtils;
 
+import javax.sound.sampled.AudioInputStream;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.Clip;
+import javax.sound.sampled.LineUnavailableException;
+import javax.sound.sampled.UnsupportedAudioFileException;
+
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -24,6 +30,8 @@ import static org.lwjgl.system.MemoryUtil.NULL;
 public class HelloWorld {
     private long window;
     private int score;
+    AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(new File("C:\\Users\\Алимжан\\Desktop\\histEnd\\wavik.wav"));
+    Clip clip = AudioSystem.getClip();
     private float squareX = -0.3f;
     private float squareY = 0.5f;
     private float squareSize = 0.2f;
@@ -32,12 +40,19 @@ public class HelloWorld {
     private int blockTextureID;
     private String fileName;
     TowerBlock[] towerBlocks = new TowerBlock[10];
+    boolean spacePressed = false;
 
-    public void run() {
+    public HelloWorld() throws UnsupportedAudioFileException, IOException, LineUnavailableException {
+    }
+
+    public void run() throws LineUnavailableException, IOException {
         System.out.println("Hello LWJGL " + Version.getVersion() + "!");
 
         init();
+        clip.open(audioInputStream);
+        clip.start();
         loop();
+
 
         glfwFreeCallbacks(window);
         glfwDestroyWindow(window);
@@ -51,9 +66,9 @@ public class HelloWorld {
         if (!glfwInit())
             throw new IllegalStateException("Unable to initialize GLFW");
 
-        glfwDefaultWindowHints(); // optional, the current window hints are already the default
-        glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE); // the window will stay hidden after creation
-        glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE); // the window will be resizable
+        glfwDefaultWindowHints();
+        glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+        glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
         window = glfwCreateWindow(800, 600, "Tower Blocks", NULL, NULL);
         if (window == NULL)
@@ -61,14 +76,21 @@ public class HelloWorld {
 
         glfwSetKeyCallback(window, (window, key, scancode, action, mods) -> {
             if (key == GLFW_KEY_ESCAPE && action == GLFW_RELEASE)
-                glfwSetWindowShouldClose(window, true); // We will detect this in the rendering loop
-            else if (key == GLFW_KEY_SPACE && action == GLFW_PRESS) {
-                // Add a new block to the top of the tower
-                TowerBlock newBlock = new TowerBlock(0.0f, towerBlocks[towerBlocks.length - 1].getY() + 0.2f,
-                        0.2f, 0.2f, loadTexture("C:\\Users\\Алимжан\\Desktop\\histEnd\\1000_F_213155103_fOzbjufN7Lj12wxTvNsC6GJM4Hu4EtMj (1).jpg"));
-                towerBlocks = Arrays.copyOf(towerBlocks, towerBlocks.length + 1);
-                towerBlocks[towerBlocks.length - 1] = newBlock;
+                glfwSetWindowShouldClose(window, true);
+
+            else if (key == GLFW_KEY_SPACE) {
+                if (action == GLFW_PRESS) {
+                    spacePressed = true; // Set the spacePressed variable to true when the space button is pressed
+                    TowerBlock newBlock = new TowerBlock(0.0f, towerBlocks[towerBlocks.length - 1].getY() + 0.2f,
+                            0.2f, 0.2f, loadTexture("C:\\Users\\Алимжан\\Desktop\\histEnd\\1000_F_213155103_fOzbjufN7Lj12wxTvNsC6GJM4Hu4EtMj (1).jpg"));
+                    towerBlocks = Arrays.copyOf(towerBlocks, towerBlocks.length + 1);
+                    towerBlocks[towerBlocks.length - 1] = newBlock;
+                } else if (action == GLFW_RELEASE) {
+                    spacePressed = false; // Set the spacePressed variable to false when the space button is released
+                }
             }
+
+
         });
 
         for (int i = 0; i < towerBlocks.length; i++) {
@@ -108,8 +130,6 @@ public class HelloWorld {
 
         glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
 
-
-
         while (!glfwWindowShouldClose(window)) {
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
             glEnable(GL_TEXTURE_2D);
@@ -128,6 +148,7 @@ public class HelloWorld {
 
 
             for (TowerBlock block : towerBlocks) {
+
                 glBindTexture(GL_TEXTURE_2D, block.getTextureID());
 
                 glBegin(GL_QUADS);
@@ -144,30 +165,20 @@ public class HelloWorld {
 
 
                 // Update the block's position
-                block.setY(block.getY() - squareSpeed);
+                if (spacePressed) {
+                    // Update the block's position only if space button is pressed
+                    block.setY(block.getY() - squareSpeed);
+                }
 
                 // Check if the block is outside the window boundaries
-                if (block.getY() + block.getHeight() < -1.0f) {
+                if (block.getY() + block.getHeight() <= -1.0f) {
                     // Remove the block from the array
+                    /*block.setY(-1.0f);*/
                     towerBlocks = ArrayUtils.removeElement(towerBlocks, block);
                 }
             }
 
-
             glDisable(GL_TEXTURE_2D);
-
-            // Check if any blocks have fallen off the tower and remove them
-            for (int i = 0; i < towerBlocks.length; i++) {
-                TowerBlock block = towerBlocks[i];
-                if (block.getY() < -1.0f) {
-                    towerBlocks = ArrayUtils.remove(towerBlocks, i);
-                    continue;
-                }
-
-                block.setY(block.getY() - squareSpeed);
-
-            }
-
 
             if (towerBlocks.length > 0 && towerBlocks[towerBlocks.length - 1].getY() > 1.0f) {
                 System.out.println("Game over!");
@@ -212,7 +223,7 @@ public class HelloWorld {
 
         return -1;
     }
-    public static void main(String[] args) {
+    public static void main(String[] args) throws UnsupportedAudioFileException, LineUnavailableException, IOException {
         new HelloWorld().run();
     }
 }

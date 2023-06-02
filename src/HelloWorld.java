@@ -1,32 +1,37 @@
-import org.lwjgl.*;
-import org.lwjgl.glfw.*;
-import org.lwjgl.opengl.*;
-import org.lwjgl.system.*;
+import org.lwjgl.BufferUtils;
+import org.lwjgl.Version;
+import org.lwjgl.glfw.GLFWErrorCallback;
+import org.lwjgl.glfw.GLFWVidMode;
+import org.lwjgl.opengl.GL;
+import org.lwjgl.system.MemoryStack;
+import org.apache.commons.lang3.ArrayUtils;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.IntBuffer;
+import java.util.Arrays;
 
-import java.nio.*;
-
-import static org.lwjgl.glfw.Callbacks.*;
+import static org.lwjgl.glfw.Callbacks.glfwFreeCallbacks;
 import static org.lwjgl.glfw.GLFW.*;
+import static org.lwjgl.glfw.GLFW.glfwPollEvents;
 import static org.lwjgl.opengl.GL11.*;
-import static org.lwjgl.system.MemoryStack.*;
-import static org.lwjgl.system.MemoryUtil.*;
-
+import static org.lwjgl.system.MemoryStack.stackPush;
+import static org.lwjgl.system.MemoryUtil.NULL;
 
 public class HelloWorld {
     private long window;
+    private int score;
     private float squareX = -0.3f;
     private float squareY = 0.5f;
     private float squareSize = 0.2f;
     private float squareSpeed = 0.01f;
     private int backgroundTextureID;
+    private int blockTextureID;
     private String fileName;
-
+    TowerBlock[] towerBlocks = new TowerBlock[10];
 
     public void run() {
         System.out.println("Hello LWJGL " + Version.getVersion() + "!");
@@ -34,100 +39,82 @@ public class HelloWorld {
         init();
         loop();
 
-        // Free the window callbacks and destroy the window
         glfwFreeCallbacks(window);
         glfwDestroyWindow(window);
 
-        // Terminate GLFW and free the error callback
         glfwTerminate();
         glfwSetErrorCallback(null).free();
     }
 
     private void init() {
         GLFWErrorCallback.createPrint(System.err).set();
-
-        // Initialize GLFW. Most GLFW functions will not work before doing this.
-        if ( !glfwInit() )
+        if (!glfwInit())
             throw new IllegalStateException("Unable to initialize GLFW");
 
-        // Configure GLFW
         glfwDefaultWindowHints(); // optional, the current window hints are already the default
         glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE); // the window will stay hidden after creation
         glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE); // the window will be resizable
 
-        // Create the window
         window = glfwCreateWindow(800, 600, "Tower Blocks", NULL, NULL);
-        if ( window == NULL )
+        if (window == NULL)
             throw new RuntimeException("Failed to create the GLFW window");
 
-        // Set up a key callback. It will be called every time a key is pressed, repeated or released.
         glfwSetKeyCallback(window, (window, key, scancode, action, mods) -> {
-            if ( key == GLFW_KEY_ESCAPE && action == GLFW_RELEASE )
+            if (key == GLFW_KEY_ESCAPE && action == GLFW_RELEASE)
                 glfwSetWindowShouldClose(window, true); // We will detect this in the rendering loop
+            else if (key == GLFW_KEY_SPACE && action == GLFW_PRESS) {
+                // Add a new block to the top of the tower
+                TowerBlock newBlock = new TowerBlock(0.0f, towerBlocks[towerBlocks.length - 1].getY() + 0.2f,
+                        0.2f, 0.2f, loadTexture("C:\\Users\\Алимжан\\Desktop\\histEnd\\1000_F_213155103_fOzbjufN7Lj12wxTvNsC6GJM4Hu4EtMj (1).jpg"));
+                towerBlocks = Arrays.copyOf(towerBlocks, towerBlocks.length + 1);
+                towerBlocks[towerBlocks.length - 1] = newBlock;
+            }
         });
 
-        // Get the thread stack and push a new frame
-        try ( MemoryStack stack = stackPush() ) {
+        for (int i = 0; i < towerBlocks.length; i++) {
+            towerBlocks[i] = new TowerBlock(0.0f, 0.0f, 0.2f, 0.2f, blockTextureID);
+        }
+
+        try (MemoryStack stack = stackPush()) {
             IntBuffer pWidth = stack.mallocInt(1); // int*
             IntBuffer pHeight = stack.mallocInt(1); // int*
 
-            // Get the window size passed to glfwCreateWindow
             glfwGetWindowSize(window, pWidth, pHeight);
-
-            // Get the resolution of the primary monitor
             GLFWVidMode vidmode = glfwGetVideoMode(glfwGetPrimaryMonitor());
-
-            // Center the window
             glfwSetWindowPos(
                     window,
                     (vidmode.width() - pWidth.get(0)) / 2,
                     (vidmode.height() - pHeight.get(0)) / 2
             );
-        } // the stack frame is popped automatically
 
-        // Make the OpenGL context current
+        }
         glfwMakeContextCurrent(window);
-        // Enable v-sync
         glfwSwapInterval(1);
-
-        // Make the window visible
         glfwShowWindow(window);
     }
-
+    float rotationAngle = 0.0f;
+    float rotationSpeed = 0.02f;
+    float rotationDirection = 1.0f;
     private void loop() {
         GL.createCapabilities();
 
+        backgroundTextureID = loadTexture("C:\\Users\\Алимжан\\Desktop\\histEnd\\cartoon-blue-sky-cityscape-cloudy-city-skyline-landscape-midday-graphic-urban-silhouette-illustration-town-building-layers-166285152.jpg");
+        blockTextureID = loadTexture("C:\\Users\\Алимжан\\Desktop\\histEnd\\1000_F_213155103_fOzbjufN7Lj12wxTvNsC6GJM4Hu4EtMj (1).jpg");
+
+        for (int i = 0; i < towerBlocks.length; i++) {
+            towerBlocks[i] = new TowerBlock(0.0f, towerBlocks[towerBlocks.length - 1].getY() + 0.2f,
+                    0.2f, 0.2f, loadTexture("C:\\Users\\Алимжан\\Desktop\\histEnd\\1000_F_213155103_fOzbjufN7Lj12wxTvNsC6GJM4Hu4EtMj (1).jpg"));
+        }
+
+        glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
 
 
-        float centerX = 0.0f;
-        float centerY = 0.5f;
-        float radius = 0.4f;
-        float startAngle = (float) Math.PI; //((Math.PI*3)/2); // Half-circle starts from 180 degrees
-        float endAngle = 0.0f;
-        float angle = startAngle;
-        float angularVelocity = 0.02f;
-        float direction = 1.0f;
 
-
-        // Set the clear color
-        glClearColor(1.0f, 0.0f, 0.0f, 0.0f);
-
-        // Load the background image as a texture
-        backgroundTextureID = loadTexture("C:\\Users\\Алимжан\\Desktop\\histEnd\\dallas_texas_skyscrapers_62556_800x600.jpg"); // Replace "background.jpg" with your actual image file name
-
-        int towerBlockTextureId = loadTexture("C:\\Users\\Алимжан\\Desktop\\histEnd\\windows-high-rise-tower-block-260nw-8905072.jpg");
-        // Run the rendering loop until the user has attempted to close
-        // the window or has pressed the ESCAPE key.
         while (!glfwWindowShouldClose(window)) {
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-            // Enable texturing
             glEnable(GL_TEXTURE_2D);
-
-            // Bind the texture
             glBindTexture(GL_TEXTURE_2D, backgroundTextureID);
 
-            // Render the background
             glBegin(GL_QUADS);
             glTexCoord2f(0.0f, 0.0f);
             glVertex2f(-1.0f, -1.0f);
@@ -139,55 +126,57 @@ public class HelloWorld {
             glVertex2f(-1.0f, 1.0f);
             glEnd();
 
-            glBindTexture(GL_TEXTURE_2D, towerBlockTextureId);
-            /*glBegin(GL_QUADS);
-            glColor3f(1.0f, 1.0f, 1.0f);
-            glTexCoord2f(0.0f, 0.0f);
-            glVertex2f(squareX, squareY);
-            glTexCoord2f(1.0f, 0.0f);
-            glVertex2f(squareX + squareSize, squareY);
-            glTexCoord2f(1.0f, 1.0f);
-            glVertex2f(squareX + squareSize, squareY + squareSize);
-            glTexCoord2f(0.0f, 1.0f);
-            glVertex2f(squareX, squareY + squareSize);
-            glEnd();
-*/
-            float x = centerX + radius * (float) Math.cos(angle);
-            float y = centerY + radius * (float) Math.sin(angle);
 
-            // Render the square at the calculated position
-            glBegin(GL_QUADS);
-            glColor3f(1.0f, 1.0f, 1.0f);
-            glTexCoord2f(0.0f, 0.0f);
-            glVertex2f(x, y);
-            glTexCoord2f(1.0f, 0.0f);
-            glVertex2f(x + squareSize, y);
-            glTexCoord2f(1.0f, 1.0f);
-            glVertex2f(x + squareSize, y + squareSize);
-            glTexCoord2f(0.0f, 1.0f);
-            glVertex2f(x, y + squareSize);
-            glEnd();
+            for (TowerBlock block : towerBlocks) {
+                glBindTexture(GL_TEXTURE_2D, block.getTextureID());
 
-            // Disable texturing
-            glDisable(GL_TEXTURE_2D);
+                glBegin(GL_QUADS);
+                glColor3f(1.0f, 1.0f, 1.0f);
+                glTexCoord2f(0.0f, 0.0f);
+                glVertex2f(block.getX(), block.getY());
+                glTexCoord2f(1.0f, 0.0f);
+                glVertex2f(block.getX() + block.getWidth(), block.getY());
+                glTexCoord2f(1.0f, 1.0f);
+                glVertex2f(block.getX() + block.getWidth(), block.getY() + block.getHeight());
+                glTexCoord2f(0.0f, 1.0f);
+                glVertex2f(block.getX(), block.getY() + block.getHeight());
+                glEnd();
 
-            // Update the angle for the next frame
-            angle += direction * angularVelocity;
-            if (angle > startAngle) {
-                angle = startAngle;
-                direction *= -1.0f; // Reverse the direction
-            } else if (angle < endAngle) {
-                angle = endAngle;
-                direction *= -1.0f; // Reverse the direction
+
+                // Update the block's position
+                block.setY(block.getY() - squareSpeed);
+
+                // Check if the block is outside the window boundaries
+                if (block.getY() + block.getHeight() < -1.0f) {
+                    // Remove the block from the array
+                    towerBlocks = ArrayUtils.removeElement(towerBlocks, block);
+                }
             }
 
+
+            glDisable(GL_TEXTURE_2D);
+
+            // Check if any blocks have fallen off the tower and remove them
+            for (int i = 0; i < towerBlocks.length; i++) {
+                TowerBlock block = towerBlocks[i];
+                if (block.getY() < -1.0f) {
+                    towerBlocks = ArrayUtils.remove(towerBlocks, i);
+                    continue;
+                }
+
+                block.setY(block.getY() - squareSpeed);
+
+            }
+
+
+            if (towerBlocks.length > 0 && towerBlocks[towerBlocks.length - 1].getY() > 1.0f) {
+                System.out.println("Game over!");
+            }
 
             glfwSwapBuffers(window);
             glfwPollEvents();
         }
     }
-
-
     private int loadTexture(String fileName) {
         try {
             // Load the image file into a ByteBuffer
@@ -198,19 +187,18 @@ public class HelloWorld {
             int[] pixels = new int[width * height];
             image.getRGB(0, 0, width, height, pixels, 0, width);
 
-            ByteBuffer buffer = BufferUtils.createByteBuffer(width * height * 4); // 4 channels (RGBA)
+            ByteBuffer buffer = BufferUtils.createByteBuffer(width * height * 4);
             for (int y = height - 1; y >= 0; y--) {
                 for (int x = 0; x < width; x++) {
                     int pixel = pixels[y * width + x];
-                    buffer.put((byte) ((pixel >> 16) & 0xFF)); // Red channel
-                    buffer.put((byte) ((pixel >> 8) & 0xFF)); // Green channel
-                    buffer.put((byte) (pixel & 0xFF)); // Blue channel
-                    buffer.put((byte) ((pixel >> 24) & 0xFF)); // Alpha channel
+                    buffer.put((byte) ((pixel >> 16) & 0xFF));
+                    buffer.put((byte) ((pixel >> 8) & 0xFF));
+                    buffer.put((byte) (pixel & 0xFF));
+                    buffer.put((byte) ((pixel >> 24) & 0xFF));
                 }
             }
             buffer.flip();
 
-            // Generate an OpenGL texture
             int textureId = glGenTextures();
             glBindTexture(GL_TEXTURE_2D, textureId);
             glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -219,16 +207,13 @@ public class HelloWorld {
 
             return textureId;
         } catch (IOException e) {
-            // Handle the exception
             e.printStackTrace();
         }
 
         return -1;
     }
-
-
     public static void main(String[] args) {
         new HelloWorld().run();
     }
-
 }
+
